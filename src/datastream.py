@@ -4,6 +4,14 @@ from datetime import datetime, time
 
 def get_time_range(date_str, start_hour, end_hour, time_zone="US/Eastern"):
 
+    """
+    Get the start and end Unix timestamps for a given date on time range
+    Returns timestamps in nanoseconds for use with Polygon
+    Hour parameters in fractions of an hour (24 hr format)
+    Allowed time_zone
+
+    """
+
     tz = pytz.timezone(time_zone)
     utc = pytz.utc
 
@@ -19,11 +27,23 @@ def get_time_range(date_str, start_hour, end_hour, time_zone="US/Eastern"):
 
 def OC(date_str):
 
+    """
+    Get the start and end Unix timestamps for a given date on NYSE hours
+    Returns timestamps in nanoseconds for use with Polygon
+    """
+
     open_utc, close_utc = get_time_range(date_str, 9.5, 16.0)
 
     return open_utc, close_utc
 
 def increase_sample_rate_most_recent(to_increase, timestamps, timestamps_onto):
+
+    """
+    Accepts a list of lists
+    timestamps represents timestamps of the lists in to_increase
+    timestamps_onto represents the timestamps to increase the sample rate onto
+    Returns same structure as to_increase but take most recent values and upsamples to matcg timestamps_onto
+    """
 
     upsampled = [[] for _ in range(len(to_increase))]
 
@@ -41,6 +61,11 @@ def increase_sample_rate_most_recent(to_increase, timestamps, timestamps_onto):
     return upsampled
 
 def get_polygon_trades_stream(ticker, date, api_key, limit=50000, max_iter=10000, use_NY_hours=True, start_hour=9.5, end_hour=16.0, time_zone="US/Eastern"):
+
+    """
+    Yields trades for a given ticker on a specific date and time frame from Polygon
+    Can also specify some limitations
+    """
 
     if use_NY_hours:
         O, C = OC(date)
@@ -72,6 +97,11 @@ def get_polygon_trades_stream(ticker, date, api_key, limit=50000, max_iter=10000
         iter += 1
 
 def get_polygon_quotes_stream(ticker, date, api_key, limit=50000, max_iter=10000, use_NY_hours=True, start_hour=9.5, end_hour=16.0, time_zone="US/Eastern"):
+
+    """
+    Yields NBBO quotes for a given ticker on a specific date and time frame from Polygon
+    Can also specify some limitations
+    """
 
     if use_NY_hours:
         O, C = OC(date)
