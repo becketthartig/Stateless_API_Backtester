@@ -38,7 +38,7 @@ class MarketSimulator:
     def __init__(self):
         self.positions = {}
         self.position_PnL = {}
-        self.short_lots = {}  # {stock: list of dicts with qty, entry_time, entry_price, borrow_rate}
+        self.short_lots = {}  
 
     def fill_order(self, stock, NBBO, order_qty, buy_side=True, slippage_rate=0.001, cost_to_borrow=0.0, timestamp=None):
         """
@@ -54,16 +54,13 @@ class MarketSimulator:
             self.short_lots[stock] = []
 
         if buy_side:
-            # Cover shorts first if any
             if self.positions[stock] < 0:
                 qty_to_cover = min(filled_qty, abs(self.positions[stock]))
                 self._cover_short(stock, qty_to_cover, avg_price, timestamp)
                 filled_qty -= qty_to_cover
-            # Add remaining as long position
             self.positions[stock] += filled_qty
             self.position_PnL[stock] -= avg_price * filled_qty + calculate_ibkr_proFIXED_fee(filled_qty, avg_price)
         else:
-            # Add new short lot
             self.positions[stock] -= filled_qty
             self.short_lots[stock].append({
                 "qty": filled_qty,
@@ -80,7 +77,6 @@ class MarketSimulator:
             lot = lots[0]
             lot_qty = lot["qty"]
             used_qty = min(qty_left, lot_qty)
-            # Calculate holding period in days
             holding_seconds = (timestamp - lot["entry_time"]) / 1e9
             holding_days = holding_seconds / 86400
             borrow_cost = used_qty * lot["entry_price"] * lot["borrow_rate"] * holding_days / 365
