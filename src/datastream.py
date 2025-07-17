@@ -9,7 +9,6 @@ def get_time_range(date_str, start_hour, end_hour, time_zone="US/Eastern"):
     Returns timestamps in nanoseconds for use with Polygon
     Hour parameters in fractions of an hour (24 hr format)
     Allowed time_zone
-
     """
 
     tz = pytz.timezone(time_zone)
@@ -17,8 +16,8 @@ def get_time_range(date_str, start_hour, end_hour, time_zone="US/Eastern"):
 
     date = datetime.strptime(date_str, "%Y-%m-%d")
 
-    start_tz = tz.localize(datetime.combine(date, time(int(start_hour), (start_hour - int(start_hour)) * 60)))
-    end_tz = tz.localize(datetime.combine(date, time(int(end_hour), (end_hour - int(end_hour)) * 60)))
+    start_tz = tz.localize(datetime.combine(date, time(int(start_hour), int((start_hour - int(start_hour)) * 60))))
+    end_tz = tz.localize(datetime.combine(date, time(int(end_hour), int((end_hour - int(end_hour)) * 60))))
 
     start_utc = start_tz.astimezone(utc)
     end_utc = end_tz.astimezone(utc)
@@ -42,7 +41,7 @@ def increase_sample_rate_most_recent(to_increase, timestamps, timestamps_onto):
     Accepts a list of lists
     timestamps represents timestamps of the lists in to_increase
     timestamps_onto represents the timestamps to increase the sample rate onto
-    Returns same structure as to_increase but take most recent values and upsamples to matcg timestamps_onto
+    Returns same structure as to_increase but take most recent values and upsamples to match timestamps_onto
     """
 
     upsampled = [[] for _ in range(len(to_increase))]
