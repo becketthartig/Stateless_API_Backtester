@@ -159,7 +159,7 @@ class MarketSimulator:
     def get_stock_Pnl(self, stock):
         return self.position_PnL.get(stock, 0.0)
 
-    def get_total_PnL(self):
+    def get_all_PnL(self):
         return sum(self.position_PnL.values())
 
     def get_stock_unrealized_PnL(self, stock, NBBO):
@@ -174,7 +174,3 @@ class MarketSimulator:
             pnl = 0.0
         return pnl
     
-    def get_stock_total_PnL(self, stock, NBBO):
-        realized = self.get_stock_Pnl(stock)
-        unrealized = self.get_stock_unrealized_PnL(stock, NBBO)
-        return realized + unrealized
