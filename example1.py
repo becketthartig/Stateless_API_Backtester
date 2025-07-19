@@ -6,7 +6,6 @@ from src.marketsimulator import MarketSimulator, IdealFillSlippageModel, ZeroCos
 from example_strategies.reversion import RangeBound
 
 API_KEY = "YOUR_API_KEY"
-API_KEY = "vaKxLEdcRQssFpe6vHdFpj7VegVZPj8L"
 STOCK = "LLY"
 DATES = ["2025-07-14", "2025-07-15", "2025-07-16", "2025-07-17", "2025-07-18"]
 
