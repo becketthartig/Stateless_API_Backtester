@@ -44,6 +44,8 @@ class DataInterface:
         self.current_data_index = 0
         self.need_new_data = True
 
+        self.last_sample = None
+
     def next_sample(self, limit=50000, max_iter=10000):
 
         """
@@ -83,6 +85,8 @@ class DataInterface:
 
         if self.current_data_index >= len(self.timestamps):
             self.need_new_data = True
+
+        self.last_sample = sample
 
         return sample
 

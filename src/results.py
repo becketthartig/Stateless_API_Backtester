@@ -4,31 +4,42 @@ class Grapher:
 
     def __init__(self):
 
+        self.timestamps = []
         self.NBBOs = []
         self.positions = []
         self.pnls = []
 
-    def add_data(self, NBBO, position, pnl):
+    def add_data(self, timestamp, NBBO, position, pnl):
 
+        self.timestamps.append(timestamp)
         self.NBBOs.append(NBBO)
         self.positions.append(position)
         self.pnls.append(pnl)
 
-    def show_plot(self):
+    def show_plot(self, title="Simulation Results"):
 
-        fig, ax1 = plt.subplots()
+        fig, axs = plt.subplots(3, 1, figsize=(12, 8), sharex=True)
 
-        ax1.set_xlabel("Time")
-        ax1.set_ylabel('NBBO', color='tab:blue')
-        ax1.plot(self.NBBOs, color='tab:blue', label='NBBO')
-        ax1.tick_params(axis='y', labelcolor='tab:blue')
+        bids = [nbbo[0] for nbbo in self.NBBOs]
+        asks = [nbbo[1] for nbbo in self.NBBOs]
 
-        ax2 = ax1.twinx()
-        ax2.set_ylabel('Position / PnL', color='tab:red')
-        ax2.plot(self.positions, color='tab:red', label='Position')
-        ax2.plot(self.pnls, color='tab:green', label='PnL')
-        ax2.tick_params(axis='y', labelcolor='tab:red')
+        axs[0].plot(self.timestamps, bids, color='tab:blue', label='Bid')
+        axs[0].plot(self.timestamps, asks, color='tab:orange', label='Ask')
+        axs[0].set_ylabel('NBBO')
+        axs[0].legend()
+        axs[0].set_title('Bid/Ask')
 
-        fig.tight_layout()
-        plt.title(title)
+        axs[1].plot(self.timestamps, self.positions, color='tab:red', label='Position')
+        axs[1].set_ylabel('Position')
+        axs[1].legend()
+        axs[1].set_title('Position')
+
+        axs[2].plot(self.timestamps, self.pnls, color='tab:green', label='PnL')
+        axs[2].set_ylabel('PnL')
+        axs[2].legend()
+        axs[2].set_title('PnL')
+        axs[2].set_xlabel('Time')
+
+        fig.suptitle(title)
+        fig.tight_layout(rect=[0, 0.03, 1, 0.95])
         plt.show()

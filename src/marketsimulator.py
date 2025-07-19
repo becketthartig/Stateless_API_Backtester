@@ -98,7 +98,8 @@ class MarketSimulator:
 
         self.positions = {}
         self.position_PnL = {}
-        self.short_lots = {}  
+        self.short_lots = {}
+        self.long_lots = {}
 
     def fill_order(self, stock, NBBO, order_qty, timestamp, buy_side=True, cost_to_borrow=0.0):
 
@@ -114,14 +115,21 @@ class MarketSimulator:
             self.positions[stock] = 0
             self.position_PnL[stock] = 0.0
             self.short_lots[stock] = []
+            self.long_lots[stock] = [] 
 
         if buy_side:
             if self.positions[stock] < 0:
                 qty_to_cover = min(filled_qty, abs(self.positions[stock]))
                 self._cover_short(stock, qty_to_cover, avg_price, timestamp)
                 filled_qty -= qty_to_cover
-            self.positions[stock] += filled_qty
-            self.position_PnL[stock] -= avg_price * filled_qty + self.cost_structure.calculate_cost(filled_qty, avg_price)
+            if filled_qty > 0:
+                self.positions[stock] += filled_qty
+                self.long_lots[stock].append({
+                    "qty": filled_qty,
+                    "entry_time": timestamp,
+                    "entry_price": avg_price
+                })
+                self.position_PnL[stock] -= avg_price * filled_qty + self.cost_structure.calculate_cost(filled_qty, avg_price)
         else:
             self.positions[stock] -= filled_qty
             self.short_lots[stock].append({
@@ -153,3 +161,15 @@ class MarketSimulator:
 
     def get_total_PnL(self):
         return sum(self.position_PnL.values())
+
+    def get_stock_unrealized_PnL(self, stock, NBBO):
+        position = self.positions.get(stock, 0)
+        if position > 0:
+            market_price = NBBO.get("bid")
+            pnl = sum((market_price - lot["entry_price"]) * lot["qty"] for lot in self.long_lots.get(stock, []))
+        elif position < 0:
+            market_price = NBBO.get("ask")
+            pnl = sum((lot["entry_price"] - market_price) * lot["qty"] for lot in self.short_lots.get(stock, []))
+        else:
+            pnl = 0.0
+        return pnl
