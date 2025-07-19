@@ -29,11 +29,12 @@ if __name__ == "__main__":
         if order_qty != 0:
             MS.fill_order(STOCK, sample.NBBO, order_qty, sample.temporal, buy_side)
 
-        Results.add_data(sample.temporal, (sample.NBBO.get("bid"), sample.NBBO.get("ask")), MS.positions.get(STOCK, 0), MS.get_stock_unrealized_PnL(STOCK, sample.NBBO))
+        Results.add_data(sample.temporal, (sample.NBBO.get("bid"), sample.NBBO.get("ask")), MS.positions.get(STOCK, 0), MS.get_stock_total_PnL(STOCK, sample.NBBO))
         
         sample = DI.next_sample()
 
     print(f"Final Unrealized PnL for {STOCK}: {MS.get_stock_unrealized_PnL(STOCK, DI.last_sample.NBBO)}")
     print(f"Final Realized PnL for {STOCK}: {MS.get_stock_Pnl(STOCK)}")
+    print(f"Final Total PnL for {STOCK}: {MS.get_stock_total_PnL(STOCK, DI.last_sample.NBBO)}")
 
     Results.show_plot()
