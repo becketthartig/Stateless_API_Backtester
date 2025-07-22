@@ -122,15 +122,19 @@ class MarketSimulator:
                 qty_to_cover = min(filled_qty, abs(self.positions[stock]))
                 self._cover_short(stock, qty_to_cover, avg_price, timestamp)
                 filled_qty -= qty_to_cover
-            if filled_qty > 0:
-                self.positions[stock] += filled_qty
-                self.long_lots[stock].append({
-                    "qty": filled_qty,
-                    "entry_time": timestamp,
-                    "entry_price": avg_price
-                })
-                self.position_PnL[stock] -= avg_price * filled_qty + self.cost_structure.calculate_cost(filled_qty, avg_price)
+            self.positions[stock] += filled_qty
+            self.long_lots[stock].append({
+                "qty": filled_qty,
+                "entry_time": timestamp,
+                "entry_price": avg_price
+            })
+            self.position_PnL[stock] -= avg_price * filled_qty + self.cost_structure.calculate_cost(filled_qty, avg_price)
         else:
+            # If reducing a long position (selling shares you own)
+            if self.positions[stock] > 0:
+                qty_to_sell = min(filled_qty, self.positions[stock])
+                self._sell_long(stock, qty_to_sell, avg_price, timestamp)
+                filled_qty -= qty_to_sell
             self.positions[stock] -= filled_qty
             self.short_lots[stock].append({
                 "qty": filled_qty,
@@ -156,6 +160,20 @@ class MarketSimulator:
             if lot["qty"] == 0:
                 lots.pop(0)
 
+    def _sell_long(self, stock, qty_to_sell, sell_price, timestamp):
+        lots = self.long_lots[stock]
+        qty_left = qty_to_sell
+        while qty_left > 0 and lots:
+            lot = lots[0]
+            lot_qty = lot["qty"]
+            used_qty = min(qty_left, lot_qty)
+            pnl = (sell_price - lot["entry_price"]) * used_qty
+            self.position_PnL[stock] += pnl
+            lot["qty"] -= used_qty
+            qty_left -= used_qty
+            if lot["qty"] == 0:
+                lots.pop(0)
+
     def get_stock_Pnl(self, stock):
         return self.position_PnL.get(stock, 0.0)
 
@@ -163,14 +181,26 @@ class MarketSimulator:
         return sum(self.position_PnL.values())
 
     def get_stock_unrealized_PnL(self, stock, NBBO):
-        position = self.positions.get(stock, 0)
-        if position > 0:
-            market_price = NBBO.get("bid")
-            pnl = sum((market_price - lot["entry_price"]) * lot["qty"] for lot in self.long_lots.get(stock, []))
-        elif position < 0:
-            market_price = NBBO.get("ask")
-            pnl = sum((lot["entry_price"] - market_price) * lot["qty"] for lot in self.short_lots.get(stock, []))
-        else:
-            pnl = 0.0
-        return pnl
+        market_bid = NBBO.get("bid", 0)
+        market_ask = NBBO.get("ask", 0)
+        unrealized = 0.0
+
+        for lot in self.long_lots.get(stock, []):
+            unrealized += (market_bid - lot["entry_price"]) * lot["qty"]
+            
+        for lot in self.short_lots.get(stock, []):
+            unrealized += (lot["entry_price"] - market_ask) * lot["qty"]
+
+        return unrealized
     
+    def get_equity_curve_sample(self, stock, NBBO):
+
+        ecs = self.get_stock_Pnl(stock)
+
+        for lot in self.long_lots.get(stock, []):
+            ecs += lot["entry_price"] * lot["qty"]
+
+        for lot in self.short_lots.get(stock, []):
+            ecs -= lot["entry_price"] * lot["qty"]
+
+        return ecs #+ self.get_stock_unrealized_PnL(stock, NBBO)

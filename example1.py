@@ -6,6 +6,7 @@ from src.marketsimulator import MarketSimulator, IdealFillSlippageModel, ZeroCos
 from example_strategies.reversion import RangeBound
 
 API_KEY = "YOUR_API_KEY"
+API_KEY = "vaKxLEdcRQssFpe6vHdFpj7VegVZPj8L"  # Example API key, replace with your own
 STOCK = "LLY"
 DATES = ["2025-07-14", "2025-07-15", "2025-07-16", "2025-07-17", "2025-07-18"]
 
@@ -28,7 +29,7 @@ if __name__ == "__main__":
         if order_qty != 0:
             MS.fill_order(STOCK, sample.NBBO, order_qty, sample.temporal, buy_side)
 
-        Results.add_data(sample.temporal, (sample.NBBO.get("bid"), sample.NBBO.get("ask")), MS.positions.get(STOCK, 0), MS.get_stock_unrealized_PnLt(STOCK, sample.NBBO))
+        Results.add_data(sample.temporal, (sample.NBBO.get("bid"), sample.NBBO.get("ask")), MS.positions.get(STOCK, 0), MS.get_stock_unrealized_PnL(STOCK, sample.NBBO))
         
         sample = DI.next_sample()
 
