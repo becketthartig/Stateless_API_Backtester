@@ -2,6 +2,11 @@ import matplotlib.pyplot as plt
 
 class Grapher:
 
+    """
+    Grapher class to visualize simulation results
+    Self exaplanatory use -> see example1.py for usage
+    """
+
     def __init__(self):
 
         self.timestamps = []

@@ -2,9 +2,17 @@ class SlippageModel:
     
     """
     Base class for slippage models
+    Other models should inherit from this class and implement the calculate_slippage method
     """
 
     def calculate_slippage(self, NBBO, order_qty, buy_side=True):
+
+        """
+        NBBO: (dict) NBBO from interface.MarketSample
+        order_qty: (int) quantity of shares to fill
+        buy_side: (bool) True for buy orders, False for sell orders
+        """
+
         raise NotImplementedError("Subclasses should implement this method.")
 
 class IdealFillSlippageModel(SlippageModel):
@@ -58,9 +66,16 @@ class CostStructure:
 
     """
     Base class for cost structures
+    Other cost structures should inherit from this class and implement the calculate_cost method
     """
 
     def calculate_cost(self, shares, avg_price):
+
+        """
+        shares: (int) number of shares in the order
+        avg_price: (float) average price of the order from slippage model
+        """
+
         raise NotImplementedError("Subclasses should implement this method.")
 
 class ZeroCostStructure(CostStructure):
@@ -93,6 +108,12 @@ class MarketSimulator:
 
     def __init__(self, slippage_model=IdealFillSlippageModel(), cost_structure=ZeroCostStructure()):
 
+        """
+        Any new models/structures made should inherit from the classes above.
+        slippage_model: (SlippageModel) instance of a slippage model
+        cost_structure: (CostStructure) instance of a cost structure
+        """
+
         self.slippage_model = slippage_model
         self.cost_structure = cost_structure
 
@@ -104,12 +125,24 @@ class MarketSimulator:
     def fill_order(self, stock, NBBO, order_qty, timestamp, buy_side=True, cost_to_borrow=0.0):
 
         """
-        timestamp: Unix nanosecond timestamp for simulation time
+        Fills an order for the given stock internally, you should
+        already know what your order is by implementing a Strategy.
+        This handles you position and Pnl as a common string across states.
+        Accounts for slippage, commision, and borrow costs for shorts currently.
+
+        Parameters:
+        stock: (str) stock ticker symbol
+        NBBO: (dict) current NBBO from interface.MarketSample
+        order_qty: (int) quantity of shares to fill
+        timestamp: (int) Unix nanosecond timestamp for simulation time
+        buy_side: (bool) True for buy orders, False for sell orders
+        cost_to_borrow: (float) cost to borrow shares for short selling, default is 0.0
         """
 
         avg_price, filled_qty = self.slippage_model.calculate_slippage(NBBO, order_qty, buy_side)
         if filled_qty <= 0:
             return None
+        total_qty = filled_qty
 
         if stock not in self.positions:
             self.positions[stock] = 0
@@ -119,30 +152,31 @@ class MarketSimulator:
 
         if buy_side:
             if self.positions[stock] < 0:
-                qty_to_cover = min(filled_qty, abs(self.positions[stock]))
+                qty_to_cover = min(filled_qty, -self.positions[stock])
                 self._cover_short(stock, qty_to_cover, avg_price, timestamp)
                 filled_qty -= qty_to_cover
-            self.positions[stock] += filled_qty
-            self.long_lots[stock].append({
-                "qty": filled_qty,
-                "entry_time": timestamp,
-                "entry_price": avg_price
-            })
-            self.position_PnL[stock] -= avg_price * filled_qty + self.cost_structure.calculate_cost(filled_qty, avg_price)
+            self.positions[stock] += total_qty
+            if filled_qty > 0:
+                self.long_lots[stock].append({
+                    "qty": filled_qty,
+                    "entry_time": timestamp,
+                    "entry_price": avg_price
+                })
+            self.position_PnL[stock] -= self.cost_structure.calculate_cost(total_qty, avg_price)
         else:
-            # If reducing a long position (selling shares you own)
             if self.positions[stock] > 0:
-                qty_to_sell = min(filled_qty, self.positions[stock])
-                self._sell_long(stock, qty_to_sell, avg_price, timestamp)
-                filled_qty -= qty_to_sell
-            self.positions[stock] -= filled_qty
-            self.short_lots[stock].append({
-                "qty": filled_qty,
-                "entry_time": timestamp,
-                "entry_price": avg_price,
-                "borrow_rate": cost_to_borrow
-            })
-            self.position_PnL[stock] += avg_price * filled_qty - self.cost_structure.calculate_cost(filled_qty, avg_price)
+                qty_to_cover = min(filled_qty, self.positions[stock])
+                self._sell_long(stock, qty_to_cover, avg_price, timestamp)
+                filled_qty -= qty_to_cover
+            self.positions[stock] -= total_qty
+            if filled_qty > 0:
+                self.short_lots[stock].append({
+                    "qty": filled_qty,
+                    "entry_time": timestamp,
+                    "entry_price": avg_price,
+                    "borrow_rate": cost_to_borrow
+                })
+            self.position_PnL[stock] -= self.cost_structure.calculate_cost(total_qty, avg_price)
 
     def _cover_short(self, stock, qty_to_cover, cover_price, timestamp):
         lots = self.short_lots[stock]
@@ -175,12 +209,24 @@ class MarketSimulator:
                 lots.pop(0)
 
     def get_stock_Pnl(self, stock):
+        """
+        Returns the realized PnL for a given stock
+        stock: (str) stock ticker symbol
+        """
         return self.position_PnL.get(stock, 0.0)
 
     def get_all_PnL(self):
+        """
+        Returns the total realized PnL across all stocks
+        """
         return sum(self.position_PnL.values())
 
     def get_stock_unrealized_PnL(self, stock, NBBO):
+        """
+        Returns the unrealized PnL for a given stock based on current NBBO
+        stock: (str) stock ticker symbol
+        NBBO: (dict) current NBBO from interface.MarketSample
+        """
         market_bid = NBBO.get("bid", 0)
         market_ask = NBBO.get("ask", 0)
         unrealized = 0.0
@@ -194,13 +240,9 @@ class MarketSimulator:
         return unrealized
     
     def get_equity_curve_sample(self, stock, NBBO):
-
-        ecs = self.get_stock_Pnl(stock)
-
-        for lot in self.long_lots.get(stock, []):
-            ecs += lot["entry_price"] * lot["qty"]
-
-        for lot in self.short_lots.get(stock, []):
-            ecs -= lot["entry_price"] * lot["qty"]
-
-        return ecs #+ self.get_stock_unrealized_PnL(stock, NBBO)
+        """
+        Returns the total PnL (realized + unrealized) for a given stock
+        stock: (str) stock ticker symbol
+        NBBO: (dict) current NBBO from interface.MarketSample
+        """
+        return self.position_PnL.get(stock, 0) + self.get_stock_unrealized_PnL(stock, NBBO)
